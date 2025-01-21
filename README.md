@@ -11,9 +11,9 @@ Currents Project State:
     initial state but inactive
     - the search seems to be working ok.
     - the network seems to working.
-    - training the net however leads to no success in the validation games (why?)
+    - training the net however leads to no real success in the validation games (why?)
 
-(pls share bugfixes, ideas and recommendations regarding this project)
+(pls share bugfixes, ideas or recommendations regarding this project)
 
 
 
