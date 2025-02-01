@@ -227,14 +227,10 @@ class Params:
         return res
 
 class Result:
-    def __init__(self, root: Node):
+    def __init__(self, root: Node, board: int, other_board: int, TT: {(int, int): Node}):
         self.root = root
         self.best_move: int = -1
-        self.root_child_results: [(int, Node)] = None  # (move, eval)
-        self.stats = Stats()
-
-    def set_move_results(self, board: int, other_board: int, TT: {(int, int): Node}):
-        self.root_child_results: [(int, Node)] = []
+        self.root_child_results: [(int, Node)] = []  # (move, eval)
         for move in move_order:
             if not c4_board.is_valid_move(board, other_board, move):
                 continue
@@ -257,11 +253,22 @@ class Result:
                                  key=lambda x: x[1].get_mean() if x[1] else math.inf)[0]
         else:
             self.best_move = random.choice(self.root_child_results)[0]
+            print("RANDOM MOVE\n"*30)
         return
+    def calc_regret_of_move(self, move: int) -> float:
+        if move == self.best_move:
+            return 0
+        best_val = 0
+        move_val = 0
+        for m, n in self.root_child_results:
+            if m == self.best_move:
+                best_val = n.get_mean()
+            elif m == move:
+                move_val = n.get_mean()
+        return abs(best_val - move_val)
 
     def __str__(self) -> str:
-        res = str(self.stats)
-        res += "   move  eval     nodes    solution\n"
+        res = "   move  eval     nodes    solution\n"
         for i, (m, c) in enumerate(sorted(self.root_child_results, \
                                    key=lambda x: x[1].get_mean() if x[1] else math.inf)):
             res += f"{i+1}.  {m+1}   "
@@ -277,19 +284,21 @@ def player(board: int, other_board: int, args: Any = None) -> int:
         args = Params()
         args.max_epochs = 9
     TT = {}
-    result: Result = search(board, other_board, args, TT)
-    search_info(args, TT, result)
+    result, stats = search(board, other_board, args, TT)
+    search_info(args, TT, result, stats)
     return result.best_move
 
-def search_info(params: Params, TT: {(int, int): Node}, result: Result):
-    print("params:")
+def search_info(params: Params, TT: {(int, int): Node}, result: Result, stats: Stats):
+    print("params:\n")
     print(params)
+    print("stats:")
+    print(stats)
     print("TT_len:", len(TT))
     print(result)
     return
 
 def search(board: int, other_board: int, params: Params = None, \
-           TT: {(int, int): Node} = None) -> Result:
+           TT: {(int, int): Node} = None) -> (Result, Stats):
     assert params.assert_valid()
     start_time_s: float = time.perf_counter()
     if TT is None:
@@ -301,7 +310,7 @@ def search(board: int, other_board: int, params: Params = None, \
         root = TT.get(c4_board.get_mirrored(board, other_board))
     if root is None:
         root = Node()
-    result = Result(root)
+    stats = Stats()
     epoch: int = 1
     total_expansions: int = 0
     while epoch <= params.max_epochs and root.solution == Solution.HEURISTIC \
@@ -310,16 +319,16 @@ def search(board: int, other_board: int, params: Params = None, \
         epoch_stats = EpochStats()
         epoch_stats.energy = max(params.min_energy,
             params.initial_energy if epoch == 1 \
-            else math.ceil(result.stats.each_epoch[-1].energy * params.energy_scale))
+            else math.ceil(stats.each_epoch[-1].energy * params.energy_scale))
         search_rec(board, other_board, root, epoch_stats.energy,
                    params, TT, epoch_stats)
         epoch_stats.time_s = time.perf_counter() - epoch_start_time_s
-        result.stats.each_epoch.append(epoch_stats)
+        stats.each_epoch.append(epoch_stats)
         total_expansions += sum(epoch_stats.expansions_each_depth)
         epoch += 1
-    result.set_move_results(board, other_board, TT)
-    result.stats.total_time_s = time.perf_counter() - start_time_s
-    return result
+    result = Result(root, board, other_board, TT)
+    stats.total_time_s = time.perf_counter() - start_time_s
+    return result, stats
 
 move_order = [3, 2, 4, 1, 5, 0, 6]
 def search_rec(board: int, other_board: int, node: Node, energy: int,
