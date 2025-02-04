@@ -192,7 +192,6 @@ class Stats:
         res += "-"*100 + "\n"
         res += f"total time: {self.total_time_s:.4} sec, "
         epoch_time: float = sum(x.time_s for x in self.each_epoch)
-        res += f"overhead time: {self.total_time_s - epoch_time:.5} sec, "
         total_visits: int = sum(sum(x.visits_each_depth) for x in self.each_epoch)
         res += f"speed: {round(total_visits / self.total_time_s)} visits / sec\n"
         res += "-"*100 + "\n"
@@ -248,7 +247,9 @@ class Result:
                 child = TT.get(c4_board.get_mirrored(other_board, new_board))
             self.root_child_results.append((move, child))
 
-        if any(child is not None for _, child in self.root_child_results):
+        if root.solution == Solution.LOSS:
+            self.best_move = max(self.root_child_results, key=lambda x: x[1].nodes)[0]
+        elif any(child is not None for _, child in self.root_child_results):
             self.best_move = min(self.root_child_results,
                                  key=lambda x: x[1].get_mean() if x[1] else math.inf)[0]
         else:

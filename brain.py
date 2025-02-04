@@ -35,6 +35,35 @@ class NN:
     def __str__(self) -> str:
         return str(self.L)
 
+    def compare_info(self, other):
+        print("compare net parameters")
+        print(self)
+        print(other)
+        if len(self.L) != len(other.L): return
+        if not all(s1 == s2 for s1, s2 in zip(self.L, other.L)): return
+        print("biases:")
+        for b1, b2 in zip(self.B, other.B):
+            assert len(b1) == len(b2)
+            db = [v1 - v2 for v1, v2 in zip(b1, b2)]
+            mean1 = sum(b1) / len(b1)
+            var1 = sum((mean1 - b)**2 for b in b1) / len(b1)
+            print("bias len:", len(b1))
+            print("self:")
+            print("min:", round(min(b1), 4), "max:", round(max(b1), 4),
+                  "mean:", round(mean1, 4), "var:", round(var1, 4))
+            print("other:")
+            mean2 = sum(b2) / len(b2)
+            var2 = sum((mean2 - b)**2 for b in b2) / len(b2)
+            print("min:", round(min(b2), 4), "max:", round(max(b2), 4),
+                  "mean:", round(mean2, 4), "var:", round(var2, 4))
+            print("delta (self - other):")
+            dmean = sum(db) / len(db)
+            dvar = sum((dmean - b)**2 for b in db) / len(db)
+            print("min:", round(min(db), 4), "max:", round(max(db), 4),
+                  "mean:", round(dmean, 4), "var:", round(dvar, 4))
+            print()
+
+
     # return reference to internal model output
     def forward(self, I: [float]) -> [float]:
         assert len(I) == self.L[0]

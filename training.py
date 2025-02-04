@@ -11,46 +11,11 @@ from pathlib import Path
 train_data_path = "c4-train/"
 meta_filepath = train_data_path + "meta.json"
 def get_net_filepath(net_index) -> str:
+    if net_index < 0: return None
     return train_data_path + "net" + str(net_index) + ".json"
 
-def get_latest_net_filepath() -> str:
-    try:
-        f = open(meta_filepath, "r")
-    except FileNotFoundError:
-        print(meta_filepath, "not found")
-    else:
-        print("read", meta_filepath, "...")
-        with f:
-            last_net_index = int(f.read(64))
-            return get_net_filepath(last_net_index)
-    return None
-
-def main():
-    print("training.py - main")
-    mysearch.test()
-
-    Path(train_data_path).mkdir(exist_ok=True)
-
-    # params
-    net_layer_sizes = [43, 60, 60, 5]
-    data_epochs = 10
-    games_per_epoch = 100
-    train_epochs_per_data_epoch = 2
-    validation_period_in_epochs = 1
-    validation_match_game_pairs = 10
-    datagen_min_nodes = 100
-    batch_size = 30
-    lr = 0.005
-    mom = 0.9
-    loss_function = distribution_loss
-    d_loss_function = d_distribution_loss
-    search_params = mysearch.Params()
-    search_params.D_len = net_layer_sizes[-1]
-    search_params.heuristic_evaluation = mysearch.uniform_evaluation
-    search_params.evaluation_params = search_params.D_len
-    search_params.expansions_threshold = 2000
-    search_params.energy_scale = 1.3
-
+# return -1 if not available
+def get_latest_net_index() -> int:
     # read meta
     last_net_index = -1
     try:
@@ -61,7 +26,44 @@ def main():
         print("read", meta_filepath, "...")
         with f:
             last_net_index = int(f.read(64))
-            print("last net index:", last_net_index)
+    return last_net_index
+
+def get_latest_net_filepath() -> str:
+    i = get_latest_net_index()
+    if i == -1:
+        return None
+    return get_net_filepath(i)
+
+def main():
+    print("training.py - main")
+    mysearch.test()
+
+    Path(train_data_path).mkdir(exist_ok=True)
+
+    # params
+    net_layer_sizes = [43, 60, 60, 5]
+    data_epochs = 10
+    games_per_epoch = 400
+    train_epochs_per_data_epoch = 4
+    validation_period_in_epochs = 1
+    validation_match_game_pairs = 10
+    datagen_min_nodes = 100
+    batch_size = 30
+    lr = 0.01
+    mom = 0.9
+    loss_function = distribution_loss
+    d_loss_function = d_distribution_loss
+    search_params = mysearch.Params()
+    search_params.D_len = net_layer_sizes[-1]
+    search_params.heuristic_evaluation = mysearch.uniform_evaluation
+    search_params.evaluation_params = search_params.D_len
+    search_params.expansions_threshold = 1000
+    search_params.energy_scale = 1.5
+
+    # read meta
+    last_net_index = get_latest_net_index()
+    if last_net_index != -1:
+        print("last net index:", last_net_index)
 
     # get nn
     if last_net_index == -1:
@@ -71,9 +73,11 @@ def main():
         search_params.evaluation_params = nn
         search_params.heuristic_evaluation = nn_evaluation
     print("NN:", nn)
-
+    if last_net_index > 0:
+        other_nn = brain.NN(filepath=get_net_filepath(last_net_index - 1))
+        nn.compare_info(other_nn)
     # run validation match against previous versions
-    # for i in range(last_net_index):
+    # for i in range(last_net_index-1, -1, -1):
     #     old_nn = brain.NN(filepath=get_net_filepath(i))
     #     validation_match(nn, old_nn, validation_match_game_pairs, search_params)
 
